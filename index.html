@@ -49,6 +49,10 @@
             margin-top: 20px;
             text-align: center;
         }
+        .history {
+            margin-top: 20px;
+            text-align: center;
+        }
         .candlestick {
             width: 100%;
             height: 150px;
@@ -80,19 +84,32 @@
             <button id="sellButton">Sälj</button>
         </div>
         <div class="portfolio" id="portfolio">Dina pengar: 1000 SEK | Värde av ägda mynt: 0 SEK</div>
+        <div class="history" id="history">Inga transaktioner än.</div>
     </div>
     <script>
         let currentPrice = 10.00;
         let money = 1000;
         let ownedCoins = 0;
         const priceHistory = [];
+        const tradeHistory = []; // Array for trade history
         const totalCandles = 10; // Total number of candles in the chart
+        let lastPrice = currentPrice; // Keep track of the last price for comparisons
 
         function updatePrice() {
             const priceChange = (Math.random() * 5 - 2.5); // Random change from -2.5 to 2.5 SEK
+            lastPrice = currentPrice; // Store last price before changing
             currentPrice += priceChange;
             currentPrice = Math.max(currentPrice, 0); // Ensure price doesn't go negative
             document.getElementById('price').innerText = `Aktuellt pris: ${currentPrice.toFixed(2)} SEK`;
+
+            // Check for price drop and apply loss to money
+            if (currentPrice < lastPrice) {
+                const lossPercentage = ((lastPrice - currentPrice) / lastPrice) * 100;
+                let lossAmount = (ownedCoins * (lossPercentage / 100) * currentPrice) / 2; // Calculate loss
+
+                money -= lossAmount; // Deduct half the loss from money
+                money = Math.max(money, 0); // Ensure money doesn't go negative
+            }
 
             priceHistory.push(currentPrice);
             if (priceHistory.length > totalCandles) {
@@ -119,22 +136,35 @@
 
                 const candleHeight = (price / (Math.max(...priceHistory) || 1)) * 100; // Normalize candle height
                 candle.style.height = `${candleHeight}px`;
-                candle.style.backgroundColor = price < currentPrice ? 'green' : 'red'; // Green if price dropped
+                candle.style.backgroundColor = price < currentPrice ? 'red' : 'green'; // Green if price increased
                 candlestick.appendChild(candle);
             });
         }
 
         function trade(action) {
             const amount = parseInt(document.getElementById('amount').value) || 1; // Get number of coins
+            const priceWhenTraded = currentPrice;
 
             if (action === 'buy' && money >= (currentPrice * amount)) {
                 ownedCoins += amount;
                 money -= (currentPrice * amount);
+                tradeHistory.push(`Köpte ${amount} mynt till ${priceWhenTraded.toFixed(2)} SEK/mynt`);
             } else if (action === 'sell' && ownedCoins >= amount) {
                 ownedCoins -= amount;
                 money += (currentPrice * amount);
+                tradeHistory.push(`Sålde ${amount} mynt till ${priceWhenTraded.toFixed(2)} SEK/mynt`);
             }
             updatePortfolio();
+            updateHistory();
+        }
+
+        function updateHistory() {
+            const historyElement = document.getElementById('history');
+            if (tradeHistory.length > 0) {
+                historyElement.innerText = tradeHistory.join('\n');
+            } else {
+                historyElement.innerText = 'Inga transaktioner än.';
+            }
         }
 
         document.getElementById('buyButton').addEventListener('click', () => trade('buy'));
